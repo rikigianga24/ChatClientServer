@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
@@ -8,7 +9,7 @@ import java.util.ArrayList;
 public class ClientHandler extends Thread {
 
     private final Socket socket;
-    private InputStreamReader received_msg;
+    private final InputStreamReader received_msg;
     public static final String ANSI_RED = "\u001B[31m";
     public static final String ANSI_YELLOW = "\u001B[33m";
     public static final String ANSI_GREEN = "\u001B[32m";
@@ -26,6 +27,8 @@ public class ClientHandler extends Thread {
 
             String msg = read(received_msg);
             history.add(msg);
+
+
             InetSocketAddress checkban = new InetSocketAddress(this.socket.getInetAddress(), this.socket.getPort());
 
             if (msg.equals("Close")) {
@@ -51,31 +54,48 @@ public class ClientHandler extends Thread {
                 System.out.println("[" + socket.getInetAddress() + ":" + socket.getPort() + "]==>" + msg);
 
                 if (msg.contains("BAN_")) { //il messaggio che arriva per controllare il ban è: BAN_127.0.0.1:PORTA
-                    String client[] = msg.split("_"); //BAN_ , 127.0.0.1:PORTA
-                    String port[] = client[1].split(":"); //127.0.0.1, PORTA
+                    String[] client = msg.split("_"); //BAN_ , 127.0.0.1:PORTA
+                    String[] port = client[1].split(":"); //127.0.0.1, PORTA
                     checkban = new InetSocketAddress(port[0], Integer.parseInt(port[1]));// creo inetsocketaddress per controllare il ban
                     System.out.println(ANSI_YELLOW+"Banno "+checkban.getAddress()+":"+checkban.getPort());
                     ServerChat.bannedClient.add(checkban);
                 }
 
                 if (msg.contains("SHOW_BAN")) {
-                    for (int i = 0; i < ServerChat.bannedClient.size(); i++) {
-                        System.out.println(ANSI_YELLOW+"Banned client=> " + ServerChat.bannedClient.get(i));
+                    for (int j = 0; j < ServerChat.connectedClient.size(); j++) {
+                        for (int i = 0; i < ServerChat.bannedClient.size(); i++) {
+                            try {
+                                send(ANSI_YELLOW + "Banned client=> " + ServerChat.bannedClient.get(i));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 }
 
                 if (msg.equals("WHO")) {
-                    for (int i = 0; i < ServerChat.connectedClient.size(); i++) {
-                        System.out.println(ANSI_WHITE+"[" + ServerChat.connectedClient.get(i) + "]");
+                    for (int j = 0; j < ServerChat.connectedClient.size(); j++) {
+                        for (int i = 0; i < ServerChat.connectedClient.size(); i++) {
+                            try {
+                                send(ANSI_WHITE + "[" + ServerChat.connectedClient.get(i) + "]");
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 }
 
                 if (msg.equals("HISTORY")) {
-                    for (int i = 0; i < history.size(); i++) {
-                        System.out.println(ANSI_GREEN + history.get(i));
+                    for (int j = 0; j < ServerChat.connectedClient.size(); j++) {
+                        for (int i = 0; i < history.size(); i++) {
+                            try {
+                                send(ANSI_GREEN + history.get(i));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 }
-
             }
 
         }
@@ -96,5 +116,12 @@ public class ClientHandler extends Thread {
         return "Close";
     }
 
+    public void send(String message) throws IOException {
+
+        OutputStreamWriter msg_out = new OutputStreamWriter(this.socket.getOutputStream());
+        msg_out.write(message);
+        msg_out.flush();
+
+    }
 
 }
